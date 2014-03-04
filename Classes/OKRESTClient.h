@@ -5,15 +5,25 @@
 
 #import <Foundation/Foundation.h>
 
+@class OKRESTClient;
+@protocol OKRESTClientDelegate <NSObject>
+
+-(void)didFinished:(OKRESTClient *)sender withResponse:(NSString *)response;
+-(void)didFinished:(OKRESTClient *)sender withError:(NSError *)error;
+
+@end
 @interface OKRESTClient : NSObject
 
-+(NSString *)generateSignature:(NSDictionary *)parameters;
-+(NSString *)getDataFrom:(NSString *)resource parameters:(NSDictionary *)parameters;
-+(NSString *)postDataTo:(NSString *)resource  parameters:(NSDictionary *)parameters;
-+(NSString *)putDataTo:(NSString *)resource parameters:(NSDictionary *)parameters;
-+(NSString *)deleteFrom:(NSString *)resource parameters:(NSDictionary *)parameters;
+@property (strong, nonatomic) NSString *server;
+@property (strong, nonatomic) NSString *phrase;
+@property (weak, nonatomic) id<OKRESTClientDelegate> delegate;
+
+
+-(id)initWithServer:(NSString *)server andPhrase:(NSString *)phrase;
+-(NSString *)generateSignature:(NSDictionary *)parameters;
+-(NSString *)getDataFrom:(NSString *)resource parameters:(NSDictionary *)parameters;
+-(NSString *)postDataTo:(NSString *)resource  parameters:(NSDictionary *)parameters;
+-(NSString *)putDataTo:(NSString *)resource parameters:(NSDictionary *)parameters;
+-(NSString *)deleteFrom:(NSString *)resource parameters:(NSDictionary *)parameters;
 @end
-@interface NSURLRequest (DummyInterface)
-+ (BOOL)allowsAnyHTTPSCertificateForHost:(NSString*)host;
-+ (void)setAllowsAnyHTTPSCertificate:(BOOL)allow forHost:(NSString*)host;
-@end
+

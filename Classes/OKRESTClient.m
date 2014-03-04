@@ -8,28 +8,43 @@
 #include <CommonCrypto/CommonHMAC.h>
 
 #define ServerURL @"your.url.com"
+#define PHRASE @""
 
 @implementation OKRESTClient
+@synthesize delegate = _delegate;
+@synthesize server = _server;
+@synthesize phrase = _phrase;
 
-+ (NSString *) putDataTo:(NSString *)resource parameters:(NSDictionary *)parameters{
-    return [OKRESTClient SendData:resource parameters:parameters postMethod:false];
+-(id)initWithServer:(NSString *)server andPhrase:(NSString *)phrase {
+    self = [super init];
+    
+    if (self) {
+        _server = server;
+        _phrase = phrase;
+    }
+    
+	return self;
 }
 
-+ (NSString *) postDataTo:(NSString *)resource parameters:(NSDictionary *)parameters{
-    return [OKRESTClient SendData:resource parameters:parameters postMethod:true];
+- (NSString *) putDataTo:(NSString *)resource parameters:(NSDictionary *)parameters{
+    return [self SendData:resource parameters:parameters postMethod:false];
 }
 
-+ (NSString *)deleteFrom:(NSString *)resource parameters:(NSDictionary *)parameters {
-    return [OKRESTClient getOrDelete:resource parameters:parameters deleteMethod:true];
+- (NSString *) postDataTo:(NSString *)resource parameters:(NSDictionary *)parameters{
+    return [self SendData:resource parameters:parameters postMethod:true];
 }
 
-+ (NSString *) getDataFrom:(NSString *)resource parameters:(NSDictionary *)parameters{
-    return [OKRESTClient getOrDelete:resource parameters:parameters deleteMethod:false];
+- (NSString *)deleteFrom:(NSString *)resource parameters:(NSDictionary *)parameters {
+    return [self getOrDelete:resource parameters:parameters deleteMethod:true];
 }
 
-+ (NSString *) getOrDelete:(NSString *)resource parameters:(NSDictionary *)parameters deleteMethod:(Boolean)delete {
-    NSString *signature = [OKRESTClient generateSignature:parameters];
-    NSString *querystring = [OKRESTClient getQueryString:parameters];
+- (NSString *) getDataFrom:(NSString *)resource parameters:(NSDictionary *)parameters{
+    return [self getOrDelete:resource parameters:parameters deleteMethod:false];
+}
+
+- (NSString *) getOrDelete:(NSString *)resource parameters:(NSDictionary *)parameters deleteMethod:(Boolean)delete {
+    NSString *signature = [self generateSignature:parameters];
+    NSString *querystring = [self getQueryString:parameters];
     querystring = [querystring stringByAppendingFormat:@"signature=%@", signature];
     
     NSString *url = [NSString stringWithFormat:@"http://%@/%@?%@", ServerURL, resource, querystring];
@@ -47,18 +62,37 @@
     NSError *error = [[NSError alloc] init];
     NSHTTPURLResponse *responseCode = nil;
   
-    NSData *oResponseData = [NSURLConnection sendSynchronousRequest:request returningResponse:&responseCode error:&error];
-    
-    if([responseCode statusCode] != 200){
-        // TODO: Manage errors
+    if (self.delegate) {
+        [NSURLConnection sendAsynchronousRequest:request queue:Nil completionHandler:^(NSURLResponse *response, NSData *data, NSError *error)
+         {
+             NSHTTPURLResponse* httpResponse = (NSHTTPURLResponse*)response;
+             if (error) {
+                 [self.delegate didFinished:self withError:error];
+             } else if([httpResponse statusCode] != 200){
+                 // TODO: Manage errors (better)
+                 NSError * newError = [[NSError alloc] initWithDomain:@"OKRESTClient" code:[httpResponse statusCode] userInfo:nil];
+                 [self.delegate didFinished:self withError:newError];
+             } else {
+                 NSString *response = [[NSString alloc] initWithData:data encoding:NSASCIIStringEncoding];
+                 [self.delegate didFinished:self withResponse:response];
+             }
+         }];
+    } else {
+        NSData *oResponseData = [NSURLConnection sendSynchronousRequest:request returningResponse:&responseCode error:&error];
+        
+        if([responseCode statusCode] != 200){
+            // TODO: Manage errors
+        }
+        
+        return [[NSString alloc] initWithData:oResponseData encoding:NSASCIIStringEncoding];
     }
     
-    return [[NSString alloc] initWithData:oResponseData encoding:NSASCIIStringEncoding];
+    return Nil;
 }
 
-+ (NSString *) SendData:(NSString *)resource parameters:(NSDictionary *)parameters postMethod:(Boolean)post {
-    NSString *signature = [OKRESTClient generateSignature:parameters];
-    NSString *querystring = [OKRESTClient getQueryString:parameters];
+- (NSString *) SendData:(NSString *)resource parameters:(NSDictionary *)parameters postMethod:(Boolean)post {
+    NSString *signature = [self generateSignature:parameters];
+    NSString *querystring = [self getQueryString:parameters];
 
     querystring = [querystring stringByAppendingFormat:@"signature=%@", signature];
     NSData *requestdata = [querystring dataUsingEncoding:NSASCIIStringEncoding];
@@ -80,17 +114,36 @@
     NSError *error = [[NSError alloc] init];
     NSHTTPURLResponse *responseCode = nil;
     
-    NSData *oResponseData = [NSURLConnection sendSynchronousRequest:request returningResponse:&responseCode error:&error];
-    
-    if([responseCode statusCode] != 200){
-        // TODO: Manage errors
+    if (self.delegate) {
+        [NSURLConnection sendAsynchronousRequest:request queue:Nil completionHandler:^(NSURLResponse *response, NSData *data, NSError *error)
+         {
+             NSHTTPURLResponse* httpResponse = (NSHTTPURLResponse*)response;
+             if (error) {
+                 [self.delegate didFinished:self withError:error];
+             } else if([httpResponse statusCode] != 200){
+                 // TODO: Manage errors (better)
+                 NSError * newError = [[NSError alloc] initWithDomain:@"OKRESTClient" code:[httpResponse statusCode] userInfo:nil];
+                 [self.delegate didFinished:self withError:newError];
+             } else {
+                 NSString *response = [[NSString alloc] initWithData:data encoding:NSASCIIStringEncoding];
+                 [self.delegate didFinished:self withResponse:response];
+             }
+         }];
+    } else {
+        NSData *oResponseData = [NSURLConnection sendSynchronousRequest:request returningResponse:&responseCode error:&error];
+        
+        if([responseCode statusCode] != 200){
+            // TODO: Manage errors
+        }
+        
+        return [[NSString alloc] initWithData:oResponseData encoding:NSASCIIStringEncoding];
     }
     
-    return [[NSString alloc] initWithData:oResponseData encoding:NSASCIIStringEncoding];
+    return Nil;
 }
 
 
-+ (NSString *) getQueryString:(NSDictionary *)parameters{
+- (NSString *) getQueryString:(NSDictionary *)parameters{
     NSString *querystring = @"";
     for (NSString *key in parameters) {
         NSObject *value = [parameters objectForKey:key];
@@ -102,7 +155,11 @@
 }
 
 
-+(NSString *)generateSignature:(NSDictionary *)parameters {
+-(NSString *)generateSignature:(NSDictionary *)parameters {
+    if ([PHRASE isEqualToString:@""]) {
+        return nil;
+    }
+    
     id mySort = ^(NSString * key1, NSString * key2){
         return [key1 compare:key2];
     };
@@ -125,13 +182,11 @@
         jsonString = [NSString stringWithFormat:@"{%@}", jsonString];
     }
     
-
-    NSString *key = @"Your secret phrase here";
-    const char *cKey  = [key cStringUsingEncoding:NSASCIIStringEncoding];
+    const char *cPhrase  = [PHRASE cStringUsingEncoding:NSASCIIStringEncoding];
     const char *cData = [jsonString cStringUsingEncoding:NSASCIIStringEncoding];
     unsigned char cHMAC[CC_SHA256_DIGEST_LENGTH];
     
-    CCHmac(kCCHmacAlgSHA256, cKey, strlen(cKey), cData, strlen(cData), cHMAC);
+    CCHmac(kCCHmacAlgSHA256, cPhrase, strlen(cPhrase), cData, strlen(cData), cHMAC);
     
     NSData *HMAC = [[NSData alloc] initWithBytes:cHMAC length:sizeof(cHMAC)];
     
@@ -141,7 +196,6 @@
     signature = [signature stringByReplacingOccurrencesOfString:@">" withString:@""];
     
     return signature;
-
 }
 
 @end
