@@ -7,9 +7,6 @@
 #include <CommonCrypto/CommonDigest.h>
 #include <CommonCrypto/CommonHMAC.h>
 
-#define ServerURL @"your.url.com"
-#define PHRASE @""
-
 @implementation OKRESTClient
 @synthesize delegate = _delegate;
 @synthesize server = _server;
@@ -47,7 +44,7 @@
     NSString *querystring = [self getQueryString:parameters];
     querystring = [querystring stringByAppendingFormat:@"signature=%@", signature];
     
-    NSString *url = [NSString stringWithFormat:@"http://%@/%@?%@", ServerURL, resource, querystring];
+    NSString *url = [NSString stringWithFormat:@"http://%@/%@?%@", _server, resource, querystring];
     
     NSMutableURLRequest *request = [[NSMutableURLRequest alloc] init];
     
@@ -105,7 +102,7 @@
         [request setHTTPMethod:@"PUT"];
     }
     
-    NSString *url = [NSString stringWithFormat:@"http://%@/%@", ServerURL, resource];
+    NSString *url = [NSString stringWithFormat:@"http://%@/%@", _server, resource];
     
     [request setURL:[NSURL URLWithString:url]];
     [request setValue:@"application/json" forHTTPHeaderField:@"content-type"];
@@ -156,7 +153,7 @@
 
 
 -(NSString *)generateSignature:(NSDictionary *)parameters {
-    if ([PHRASE isEqualToString:@""]) {
+    if (!_phrase || [_phrase isEqualToString:@""]) {
         return nil;
     }
     
@@ -182,7 +179,7 @@
         jsonString = [NSString stringWithFormat:@"{%@}", jsonString];
     }
     
-    const char *cPhrase  = [PHRASE cStringUsingEncoding:NSASCIIStringEncoding];
+    const char *cPhrase  = [_phrase cStringUsingEncoding:NSASCIIStringEncoding];
     const char *cData = [jsonString cStringUsingEncoding:NSASCIIStringEncoding];
     unsigned char cHMAC[CC_SHA256_DIGEST_LENGTH];
     
